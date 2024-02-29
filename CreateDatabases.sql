@@ -59,3 +59,154 @@ ADD bit_column BIT,
     geography_column GEOGRAPHY,
     geometry_column GEOMETRY;
 GO
+
+
+-- create test data
+USE [smcdb1]
+GO
+
+INSERT INTO [dbo].[Test]
+           ([Code]
+           ,[bit_column]
+           ,[tinyint_column]
+           ,[smallint_column]
+           ,[int_column]
+           ,[bigint_column]
+           ,[decimal_column]
+           ,[numeric_colimn]
+           ,[smallmoney_column]
+           ,[money_column]
+           ,[real_column]
+           ,[float_column]
+           ,[date_column]
+           ,[datetime_column]
+           ,[datetime2_column]
+           ,[datetimeoffset_column]
+           ,[smalldatetime_column]
+           ,[time_column]
+           ,[char_column]
+           ,[varchar_column]
+           ,[text_column]
+           ,[nchar_column]
+           ,[nvarchar_column]
+           ,[ntext_column]
+           ,[binary_column]
+           ,[varbinary_column]
+           ,[image_column]
+           ,[hierarchyid_column]
+           ,[uniqueidentifier_column]
+           ,[xml_column]
+           ,[geography_column]
+           ,[geometry_column])
+     VALUES
+           ('A001', 1, 253, -25100, 987632, 8856324125637, 1234.56, 123456789012345678, 12.34, 123.45, 3.14, 3.14159, '2024-02-22', '2024-02-22T12:34:56', '2024-02-22T12:34:56.7898124', '2024-02-22T12:34:56.8912384+05:30', '2024-02-22T12:34:00', '12:34:56', 'abc', 'Este es un varchar', 'Este es un texto', 'abc', 'Este es un Nvarchar', 'Este es un Ntexto', 0x0102030405, 0x010203, NULL, NULL, NEWID(), '<root><child>datos</child></root>', geography::STGeomFromText('POINT(-122.34900 47.65100)', 4326), geometry::STGeomFromText('POINT(-122.34900 47.65100)', 0)),
+		   ('A002', 0, 3, 1268, -1256978, -3695211569785216, 9876.54, -987654321098765432, 0.56, -678.90, -2.71, -2.71828, '2024-02-23', '2024-02-23T01:23:45', '2024-02-23T01:23:45.1234567', '2024-02-23T01:23:45.1253467-07:00', '2024-02-23T01:23:00', '01:23:45', 'abc', 'Este es un varchar', 'Este es un texto', 'def', 'Este es otro Nvarchar', 'Este es otro Ntexto', 0x0504030201, 0x050403, NULL, NULL, NEWID(), '<root><child>m�s datos</child></root>', geography::STGeomFromText('LINESTRING(-122.360 47.656, -122.343 47.656)', 4326), geometry::STGeomFromText('LINESTRING(-122.360 47.656, -122.343 47.656)', 0))
+		   ;
+GO
+
+
+-- copy table test from smcdb1 to smcdb2
+SELECT *
+INTO smcdb2.dbo.Test
+FROM smcdb1.dbo.Test;
+GO
+
+
+-- join between tables
+SELECT *
+FROM smcdb1.dbo.Test AS t1
+INNER JOIN smcdb2.dbo.Test AS t2
+	ON t1.nvarchar_column COLLATE Latin1_General_CS_AS = t2.nvarchar_column
+
+
+
+-- create tables Sales on smcdb1
+USE smcdb1;
+GO
+
+CREATE SCHEMA Sales;
+GO
+
+CREATE TABLE Sales.Customers (
+    CustomerId UNIQUEIDENTIFIER PRIMARY KEY,
+    Name VARCHAR(50) NOT NULL,
+    Surname VARCHAR(50) NOT NULL,
+    DocumentNumber VARCHAR(15) UNIQUE NOT NULL
+);
+GO
+
+CREATE TABLE Sales.Countries (
+    CountryId UNIQUEIDENTIFIER PRIMARY KEY,
+    CountryName NVARCHAR(50) NOT NULL
+);
+GO
+
+CREATE TABLE Sales.Address (
+    AddressId UNIQUEIDENTIFIER PRIMARY KEY,
+    Street NVARCHAR(100),
+    City NVARCHAR(100) NOT NULL,
+    CountryId UNIQUEIDENTIFIER,
+    FOREIGN KEY (CountryId) REFERENCES Sales.Countries(CountryId)
+);
+GO
+
+CREATE TABLE Sales.Products (
+    ProductId UNIQUEIDENTIFIER PRIMARY KEY,
+    Name NVARCHAR(100)
+);
+GO
+
+CREATE TABLE Sales.InvoicesHeader (
+	InvoiceId UNIQUEIDENTIFIER PRIMARY KEY,
+    InvoiceDate DATETIME DEFAULT GETDATE(),
+    CustomerId UNIQUEIDENTIFIER,
+    AddressId UNIQUEIDENTIFIER,
+    TaxBase MONEY NOT NULL,
+    TotalVat MONEY NOT NULL,
+    Total MONEY NOT NULL,
+    FOREIGN KEY (CustomerId) REFERENCES Sales.Customers(CustomerId),
+    FOREIGN KEY (AddressId) REFERENCES Sales.Address(AddressId),
+);
+GO
+
+CREATE TABLE Sales.VatTypes (
+    VatTypeId INT PRIMARY KEY,
+    VatName VARCHAR(30),
+    VatCost DECIMAL(5,2) NOT NULL
+);
+GO
+
+CREATE TABLE Sales.InvoicesDetail (
+    InvoiceId UNIQUEIDENTIFIER,
+    RowNumber INT,
+    ProductId UNIQUEIDENTIFIER,
+    Description NVARCHAR(100),
+    Quantity INT NOT NULL,
+    UnitPrice MONEY NOT NULL,
+    Discount DECIMAL(5,2),
+    VatTypeId INT,
+    TotalLine MONEY NOT NULL
+    PRIMARY KEY (InvoiceId, RowNumber)
+    FOREIGN KEY (VatTypeId) REFERENCES Sales.VatTypes(VatTypeId),
+    FOREIGN KEY (ProductId) REFERENCES Sales.Products(ProductId)
+);
+GO
+
+-- create trigger to actualice Sales.InvoicesDetail.TotalLine
+USE smcdb1;
+GO
+
+CREATE TRIGGER UpdateInvoicesDetailTotalLine
+ON Sales.InvoicesDetail
+AFTER INSERT
+AS
+BEGIN
+    IF UPDATE(Quantity) OR UPDATE(UnitPrice) OR UPDATE(Discount) OR UPDATE(VatTypeId) OR UPDATE(VatCost)
+    BEGIN
+        UPDATE Sales.InvoicesDetail
+        SET TotalLine = Quantity * ((UnitPrice - (UnitPrice * ISNULL(Discount, 0))) + (UnitPrice - (UnitPrice * ISNULL(Discount, 0)) * ISNULL((SELECT VatCost FROM Sales.VatTypes WHERE VatTypeId = inserted.VatTypeId), 0)))
+        FROM inserted
+        WHERE Sales.InvoicesDetail.InvoiceId = inserted.InvoiceId AND Sales.InvoicesDetail.RowNumber = inserted.RowNumber;
+    END
+END;
+GO

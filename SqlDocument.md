@@ -1,7 +1,8 @@
 # Formación SQL
 
 ## Collation
-    Las distintas variables que se añaden a los collation de una base de datos y que proporcionan propiedades de distinción entre diferentes elementos relacionados con los campos de tipo caracter, son:
+Las distintas variables que se añaden a los collation de una base de datos y que proporcionan propiedades de distinción entre diferentes elementos relacionados con los campos de tipo caracter, son:
+
 - CS = case-sensitive vs CI = case-insentitive
     - Con CS un texto en mayúsculas no se toma como igual al mismo texto en minúsculas en una comparación; mientras que con CI sí.
 - AS = accent-sensitive vs AI = accent-insentitive
@@ -108,3 +109,25 @@ La decisión del uso de Uniqueidentifier o Identity como valor identificativo de
     - Los GUID no dependen del resto de registros de la propia tabla ni de la base de datos, por lo que son más fáciles de generar y de portar entre distintos sistemas
 - Mantenimiento:
     - Los GUID son más complejos de mantener al no ser previsibles como el int autonumérico y porque son más díficiles de leer.
+
+
+### Valores por defecto
+
+El uso de valores por defecto en las columnas de una tabla es apropiado en los casos en que se pueda determinar de forma clara un único valor base para todos los registros que se puedan crear; en caso de que no se determine en la sentencia de inserción específicamente. Por ejemplo, una columna datetime que almacene la fecha de modificación del registro y su defecto sea la función GETDATE(), o campos enterosen los que se precise que, en caso de no indicar otra cosa en la creación del registro, se almacene un 0 en lugar de un nulo.
+
+Algunos ejemplos de valores por defecto son:
+
+```sql
+CREATE TABLE Users (
+    Id INT PRIMARY KEY,
+    Name VARCHAR(50),
+    RegisterDate DATETIME DEFAULT GETDATE()
+    Estado VARCHAR(20) DEFAULT 'Activo'
+    Wage DECIMAL(10, 2) DEFAULT 0.00;
+);
+```
+
+### Valores nulos
+
+La utilización de valores nulos en columnas de tablas de base de datos permite una mayor flexibilidad en la gestión de datos ya que no obligan a la inclusión de valores concretos y puede reducir espacio en el uso de la misma, pero a su vez aumenta la probabilidad de errores lógicos en las consultas y aumento de complejidad en la realización de las mismas por tener que contemplar esa opción además de la propia del tipo de dato de la columna.
+
