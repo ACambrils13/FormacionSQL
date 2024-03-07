@@ -192,21 +192,72 @@ CREATE TABLE Sales.InvoicesDetail (
 );
 GO
 
--- create trigger to actualice Sales.InvoicesDetail.TotalLine
+-- create triggers to actualice Sales.InvoicesDetail.TotalLine
 USE smcdb1;
 GO
 
-CREATE TRIGGER UpdateInvoicesDetailTotalLine
+-- insert / update on Sales.InvoicesDetail
+CREATE OR ALTER TRIGGER UpdateTotalOnUpdateDetail
 ON Sales.InvoicesDetail
-AFTER INSERT
+AFTER INSERT, UPDATE
 AS
 BEGIN
-    IF UPDATE(Quantity) OR UPDATE(UnitPrice) OR UPDATE(Discount) OR UPDATE(VatTypeId) OR UPDATE(VatCost)
+    IF UPDATE(Quantity) OR UPDATE(UnitPrice) OR UPDATE(Discount) OR UPDATE(VatTypeId)
     BEGIN
         UPDATE Sales.InvoicesDetail
-        SET TotalLine = Quantity * ((UnitPrice - (UnitPrice * ISNULL(Discount, 0))) + (UnitPrice - (UnitPrice * ISNULL(Discount, 0)) * ISNULL((SELECT VatCost FROM Sales.VatTypes WHERE VatTypeId = inserted.VatTypeId), 0)))
+        SET TotalLine = inserted.Quantity * ((inserted.UnitPrice * ((100 - ISNULL(inserted.Discount, 0)) / 100)) + ((inserted.UnitPrice * ((100 - ISNULL(inserted.Discount, 0)) / 100)) * (ISNULL((SELECT VatCost FROM Sales.VatTypes WHERE VatTypeId = inserted.VatTypeId), 0) / 100)))
         FROM inserted
         WHERE Sales.InvoicesDetail.InvoiceId = inserted.InvoiceId AND Sales.InvoicesDetail.RowNumber = inserted.RowNumber;
-    END
+    END;
+
+    BEGIN
+        UPDATE inh
+        SET TaxBase = (SELECT SUM(ind.Quantity * ((ind.UnitPrice * ((100 - ISNULL(ind.Discount, 0)) / 100)))) FROM Sales.InvoicesDetail AS ind WHERE ind.InvoiceId = inh.InvoiceId)
+            , TotalVat = (SELECT SUM(ind.TotalLine - (ind.Quantity * ((ind.UnitPrice * ((100 - ISNULL(ind.Discount, 0)) / 100))))) FROM Sales.InvoicesDetail AS ind WHERE ind.InvoiceId = inh.InvoiceId)
+            , Total = (SELECT SUM(ind.TotalLine) FROM Sales.InvoicesDetail AS ind WHERE ind.InvoiceId = inh.InvoiceId)
+        FROM Sales.InvoicesHeader AS inh
+        INNER JOIN inserted ON inserted.InvoiceId = inh.InvoiceId
+    END;
+END;
+GO
+
+-- delete on Sales.InvoicesDetail
+CREATE OR ALTER TRIGGER UpdateInvoicesHeaderOnDeleteDetail
+ON Sales.InvoicesDetail
+AFTER DELETE
+AS
+BEGIN
+    UPDATE inh
+    SET TaxBase = (SELECT SUM(ind.Quantity * ((ind.UnitPrice * ((100 - ISNULL(ind.Discount, 0)) / 100)))) FROM Sales.InvoicesDetail AS ind WHERE ind.InvoiceId = inh.InvoiceId)
+        , TotalVat = (SELECT SUM(ind.TotalLine - (ind.Quantity * ((ind.UnitPrice * ((100 - ISNULL(ind.Discount, 0)) / 100))))) FROM Sales.InvoicesDetail AS ind WHERE ind.InvoiceId = inh.InvoiceId)
+        , Total = (SELECT SUM(ind.TotalLine) FROM Sales.InvoicesDetail AS ind WHERE ind.InvoiceId = inh.InvoiceId)
+    FROM Sales.InvoicesHeader AS inh
+    INNER JOIN deleted ON deleted.InvoiceId = inh.InvoiceId
+END;
+GO
+
+-- update on Sales.VatTypes
+CREATE OR ALTER TRIGGER UpdateTotalOnUpdateVatCost
+ON Sales.VatTypes
+AFTER UPDATE
+AS
+BEGIN
+    IF UPDATE(VatCost)
+    BEGIN
+        UPDATE ind
+        SET TotalLine = ind.Quantity * ((ind.UnitPrice * ((100 - ISNULL(ind.Discount, 0)) / 100)) + ((ind.UnitPrice * ((100 - ISNULL(ind.Discount, 0)) / 100)) * (ISNULL((SELECT VatCost FROM Sales.VatTypes WHERE VatTypeId = ind.VatTypeId), 0) / 100)))
+        FROM Sales.InvoicesDetail AS ind
+        INNER JOIN inserted ON ind.VatTypeId = inserted.VatTypeId
+    END;
+
+    BEGIN
+        UPDATE inh
+        SET TaxBase = (SELECT SUM(ind.Quantity * ((ind.UnitPrice * ((100 - ISNULL(ind.Discount, 0)) / 100)))) FROM Sales.InvoicesDetail AS ind WHERE ind.InvoiceId = inh.InvoiceId)
+            , TotalVat = (SELECT SUM(ind.TotalLine - (ind.Quantity * ((ind.UnitPrice * ((100 - ISNULL(ind.Discount, 0)) / 100))))) FROM Sales.InvoicesDetail AS ind WHERE ind.InvoiceId = inh.InvoiceId)
+            , Total = (SELECT SUM(ind.TotalLine) FROM Sales.InvoicesDetail AS ind WHERE ind.InvoiceId = inh.InvoiceId)
+        FROM Sales.InvoicesHeader AS inh
+        INNER JOIN Sales.InvoicesDetail AS ind ON ind.InvoiceId = inh.InvoiceId
+        INNER JOIN inserted ON inserted.VatTypeId = ind.VatTypeId
+    END;
 END;
 GO
