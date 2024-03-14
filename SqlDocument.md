@@ -131,3 +131,21 @@ CREATE TABLE Users (
 
 La utilización de valores nulos en columnas de tablas de base de datos permite una mayor flexibilidad en la gestión de datos ya que no obligan a la inclusión de valores concretos y puede reducir espacio en el uso de la misma, pero a su vez aumenta la probabilidad de errores lógicos en las consultas y aumento de complejidad en la realización de las mismas por tener que contemplar esa opción además de la propia del tipo de dato de la columna.
 
+
+### Diagrama de base de datos
+
+El diagrama de las bases de datos de smcdb1 es el siguiente:
+
+![alt text](image.png)
+
+
+### Campos clave compuestos
+
+El uso de claves compuestas por varias columnas es útil en las ocasiones en las que sea complicado encontrar un campo único en esa tabla, bien sea por la falta de entidad de la propia tabla o porque se trate de, por ejemplo, una tabla que genere una relación N a N entre otras dos tablas. En estos casos, es útil usar las como clave primaria las dos claves primarias de las tablas asociadas o bien, como en el caso de InvoicesDetail, la clave primaria de su cabecera, InvoicesHeader y el número de línea único para cada factura, pero no a nivel general de la tabla.
+
+
+### Campos calculados vs Triggers
+
+El uso de campos calculados es más simple para casos de operaciones simples dentro de una misma tabla, que no impliquen una lógica compleja. Usándolos, el rendimiento no se ve muy afectado y permite una forma fácil de actualizar datos automáticamente.
+
+Por su parte, los triggers permiten mucha más flexibilidad a la hora de crear operaciones complejas que incluso puedan utilizar campos de diversas tablas o actualizar unas tablas cuando se producen cambios en otras. Al ser operaciones que deben crearse fueras de las tablas, implican más mantenimiento y, en función de su complejidad, pueden perjudicar al rendimiento de las consultas.

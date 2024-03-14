@@ -188,7 +188,8 @@ CREATE TABLE Sales.InvoicesDetail (
     TotalLine MONEY NOT NULL
     PRIMARY KEY (InvoiceId, RowNumber)
     FOREIGN KEY (VatTypeId) REFERENCES Sales.VatTypes(VatTypeId),
-    FOREIGN KEY (ProductId) REFERENCES Sales.Products(ProductId)
+    FOREIGN KEY (ProductId) REFERENCES Sales.Products(ProductId),
+    FOREIGN KEY (InvoiceId) REFERENCES Sales.InvoicesHeader(InvoiceId)
 );
 GO
 
