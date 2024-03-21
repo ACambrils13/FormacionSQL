@@ -229,9 +229,9 @@ AFTER DELETE
 AS
 BEGIN
     UPDATE inh
-    SET TaxBase = (SELECT SUM(ind.Quantity * ((ind.UnitPrice * ((100 - ISNULL(ind.Discount, 0)) / 100)))) FROM Sales.InvoicesDetail AS ind WHERE ind.InvoiceId = inh.InvoiceId)
-        , TotalVat = (SELECT SUM(ind.TotalLine - (ind.Quantity * ((ind.UnitPrice * ((100 - ISNULL(ind.Discount, 0)) / 100))))) FROM Sales.InvoicesDetail AS ind WHERE ind.InvoiceId = inh.InvoiceId)
-        , Total = (SELECT SUM(ind.TotalLine) FROM Sales.InvoicesDetail AS ind WHERE ind.InvoiceId = inh.InvoiceId)
+    SET TaxBase = (ISNULL((SELECT SUM(ind.Quantity * ((ind.UnitPrice * ((100 - ISNULL(ind.Discount, 0)) / 100)))) FROM Sales.InvoicesDetail AS ind WHERE ind.InvoiceId = inh.InvoiceId), 0))
+        , TotalVat = (ISNULL((SELECT SUM(ind.TotalLine - (ind.Quantity * ((ind.UnitPrice * ((100 - ISNULL(ind.Discount, 0)) / 100))))) FROM Sales.InvoicesDetail AS ind WHERE ind.InvoiceId = inh.InvoiceId), 0))
+        , Total = (ISNULL((SELECT SUM(ind.TotalLine) FROM Sales.InvoicesDetail AS ind WHERE ind.InvoiceId = inh.InvoiceId), 0))
     FROM Sales.InvoicesHeader AS inh
     INNER JOIN deleted ON deleted.InvoiceId = inh.InvoiceId
 END;
@@ -262,3 +262,140 @@ BEGIN
     END;
 END;
 GO
+
+
+
+-- populate necessary tables for invoicing
+USE smcdb1;
+GO
+-- Countries
+BEGIN
+    INSERT INTO Sales.Countries (CountryId, CountryName) VALUES (NEWID(), 'Spain');
+    INSERT INTO Sales.Countries (CountryId, CountryName) VALUES (NEWID(), 'Portugal');
+END
+GO
+
+-- Address
+BEGIN
+    INSERT INTO Sales.Address (AddressId, Street, City, CountryId) VALUES (NEWID(), 'Castilla', 'Santander', (SELECT CountryId FROM Sales.Countries WHERE CountryName = 'Spain'));
+    INSERT INTO Sales.Address (AddressId, Street, City, CountryId) VALUES (NEWID(), 'Gran Vía', 'Madrid', (SELECT CountryId FROM Sales.Countries WHERE CountryName = 'Spain'));
+    INSERT INTO Sales.Address (AddressId, Street, City, CountryId) VALUES (NEWID(), 'Diagonal', 'Barcelona', (SELECT CountryId FROM Sales.Countries WHERE CountryName = 'Spain'));
+    INSERT INTO Sales.Address (AddressId, Street, City, CountryId) VALUES (NEWID(), 'Puerto', 'Valencia', (SELECT CountryId FROM Sales.Countries WHERE CountryName = 'Spain'));
+    INSERT INTO Sales.Address (AddressId, Street, City, CountryId) VALUES (NEWID(), 'Ría', 'Bilbao', (SELECT CountryId FROM Sales.Countries WHERE CountryName = 'Spain'));
+    INSERT INTO Sales.Address (AddressId, Street, City, CountryId) VALUES (NEWID(), 'Via 1', 'Porto', (SELECT CountryId FROM Sales.Countries WHERE CountryName = 'Portugal'));
+    INSERT INTO Sales.Address (AddressId, Street, City, CountryId) VALUES (NEWID(), 'Via 2', 'Lisboa', (SELECT CountryId FROM Sales.Countries WHERE CountryName = 'Portugal'));
+    INSERT INTO Sales.Address (AddressId, Street, City, CountryId) VALUES (NEWID(), 'Via 3', 'Aveiro', (SELECT CountryId FROM Sales.Countries WHERE CountryName = 'Portugal'));
+    INSERT INTO Sales.Address (AddressId, Street, City, CountryId) VALUES (NEWID(), 'Via 4', 'Os Belenenses', (SELECT CountryId FROM Sales.Countries WHERE CountryName = 'Portugal'));
+    INSERT INTO Sales.Address (AddressId, Street, City, CountryId) VALUES (NEWID(), 'Via 5', 'Braga', (SELECT CountryId FROM Sales.Countries WHERE CountryName = 'Portugal'));
+END
+GO
+
+-- Customers
+BEGIN
+    INSERT INTO Sales.Customers (CustomerId, Name, Surname, DocumentNumber) VALUES (NEWID(), 'Alejandro', 'Pérez', '12345678A');
+    INSERT INTO Sales.Customers (CustomerId, Name, Surname, DocumentNumber) VALUES (NEWID(), 'María', 'Rodríguez', '12345678B');
+    INSERT INTO Sales.Customers (CustomerId, Name, Surname, DocumentNumber) VALUES (NEWID(), 'Lucas', 'Jiménez', '12345678V');
+    INSERT INTO Sales.Customers (CustomerId, Name, Surname, DocumentNumber) VALUES (NEWID(), 'Pedro', 'Couto', '12345678S');
+    INSERT INTO Sales.Customers (CustomerId, Name, Surname, DocumentNumber) VALUES (NEWID(), 'Naia', 'Fernández', '12345678E');
+    INSERT INTO Sales.Customers (CustomerId, Name, Surname, DocumentNumber) VALUES (NEWID(), 'Nuria', 'Do Nascimiento', '12345678R');
+    INSERT INTO Sales.Customers (CustomerId, Name, Surname, DocumentNumber) VALUES (NEWID(), 'João', 'Da Silva', '12345678P');
+    INSERT INTO Sales.Customers (CustomerId, Name, Surname, DocumentNumber) VALUES (NEWID(), 'Domingo', 'López', '12345678U');
+    INSERT INTO Sales.Customers (CustomerId, Name, Surname, DocumentNumber) VALUES (NEWID(), 'Lucía', 'Neves', '12345678M');
+    INSERT INTO Sales.Customers (CustomerId, Name, Surname, DocumentNumber) VALUES (NEWID(), 'Cristina', 'García', '12345678N');
+END
+GO
+
+-- Products
+BEGIN
+    INSERT INTO Sales.Products (ProductId, Name) VALUES (NEWID(), 'Product1');
+    INSERT INTO Sales.Products (ProductId, Name) VALUES (NEWID(), 'Product2');
+    INSERT INTO Sales.Products (ProductId, Name) VALUES (NEWID(), 'Product3');
+    INSERT INTO Sales.Products (ProductId, Name) VALUES (NEWID(), 'Product4');
+    INSERT INTO Sales.Products (ProductId, Name) VALUES (NEWID(), 'Product5');
+    INSERT INTO Sales.Products (ProductId, Name) VALUES (NEWID(), 'Product6');
+    INSERT INTO Sales.Products (ProductId, Name) VALUES (NEWID(), 'Product7');
+    INSERT INTO Sales.Products (ProductId, Name) VALUES (NEWID(), 'Product8');
+    INSERT INTO Sales.Products (ProductId, Name) VALUES (NEWID(), 'Product9');
+    INSERT INTO Sales.Products (ProductId, Name) VALUES (NEWID(), 'Product10');
+END
+GO
+
+-- VatTypes
+BEGIN
+    INSERT INTO Sales.VatTypes (VatTypeId, VatName, VatCost) VALUES (1, 'IVA Standard', 21.0); 
+    INSERT INTO Sales.VatTypes (VatTypeId, VatName, VatCost) VALUES (2, 'IVA Redux', 10.0); 
+    INSERT INTO Sales.VatTypes (VatTypeId, VatName, VatCost) VALUES (3, 'IVA Special', 4.0); 
+END
+GO
+
+
+
+-- Store Procedure to create 10000 invoices
+USE smcdb1;
+GO
+
+BEGIN
+IF OBJECT_ID ( 'Sales.InsertInvoices', 'P') IS NOT NULL
+    DROP PROCEDURE Sales.InsertInvoices;
+END
+GO
+
+CREATE PROCEDURE Sales.InsertInvoices
+    @InvoicesNum INT,
+    @MinInvoiceLines INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @Counter INT = 0;
+
+    WHILE @Counter < @InvoicesNum
+    BEGIN
+        DECLARE @InvoiceId UNIQUEIDENTIFIER = NEWID();
+        DECLARE @CustomerId UNIQUEIDENTIFIER;
+        DECLARE @AddressId UNIQUEIDENTIFIER;
+        DECLARE @InvoiceDate DATETIME = DATEADD(DAY, ROUND(RAND() * 364, 0), '20240101');
+        DECLARE @InvoiceLinesNum INT = ROUND(RAND() * 50, 0) + @MinInvoiceLines;
+
+        SELECT TOP 1 @CustomerId = CustomerId FROM Sales.Customers ORDER BY NEWID();
+        SELECT TOP 1 @AddressId = AddressId FROM Sales.Address ORDER BY NEWID();
+
+        INSERT INTO Sales.InvoicesHeader (InvoiceId, InvoiceDate, CustomerId, AddressId, TaxBase, TotalVat, Total)
+        VALUES (@InvoiceId, @InvoiceDate, @CustomerId, @AddressId, 0, 0, 0);
+
+        WHILE @InvoiceLinesNum > 0
+        BEGIN
+            DECLARE @ProductId UNIQUEIDENTIFIER;
+            DECLARE @ProductDesc NVARCHAR(100);
+            DECLARE @Quantity INT = ROUND(RAND() * 100, 0) + 1;
+            DECLARE @Price MONEY = ROUND(RAND() * 100, 2) + 0.01;
+            DECLARE @Discount DECIMAL(5,2) = ROUND(RAND() * 100, 0);
+            DECLARE @VatType INT;
+
+            SELECT TOP 1 @ProductId = ProductId FROM Sales.Products ORDER BY NEWID();
+            SELECT TOP 1 @VatType = VatTypeId FROM Sales.VatTypes ORDER BY NEWID();
+
+            DECLARE curProducts CURSOR FOR
+            SELECT Name FROM Sales.Products WHERE ProductId = @ProductId;
+
+            OPEN curProducts;
+            FETCH NEXT FROM curProducts INTO @ProductDesc;
+            CLOSE curProducts;
+            DEALLOCATE curProducts;
+
+            INSERT INTO Sales.InvoicesDetail (InvoiceId, RowNumber, ProductId, [Description], Quantity, UnitPrice, Discount, VatTypeId, TotalLine)
+            VALUES (@InvoiceId, @InvoiceLinesNum, @ProductId, @ProductDesc, @Quantity, @Price, @Discount, @VatType, 0);
+
+            SET @InvoiceLinesNum = @InvoiceLinesNum - 1;
+        END
+
+        SET @Counter = @Counter + 1;
+    END
+END
+GO
+
+
+-- Execute procedure
+USE smcdb1;
+GO
+
+EXECUTE Sales.InsertInvoices @InvoicesNum = 10000, @MinInvoiceLines = 50;
