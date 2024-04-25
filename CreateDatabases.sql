@@ -399,3 +399,42 @@ USE smcdb1;
 GO
 
 EXECUTE Sales.InsertInvoices @InvoicesNum = 10000, @MinInvoiceLines = 50;
+
+
+
+
+-- Table with distinct collations
+USE smcdb2;
+GO
+
+BEGIN
+CREATE TABLE CollationTest (
+    latin_column VARCHAR(50) COLLATE Latin1_General_CS_AS,
+    spanish_column VARCHAR(50) COLLATE Modern_Spanish_CI_AI,
+)
+END
+GO
+
+
+
+-- Querys to extact data on Sales
+USE smcdb1;
+GO
+
+BEGIN
+    SELECT pro.Name AS 'Type'
+        , YEAR(inv.InvoiceDate) AS 'Year'
+        , CAST(SUM(det.TotalLine) AS money) AS 'Total Invoices'
+        , CAST(SUM(det.TotalLine - (det.Quantity * ((det.UnitPrice * ((100 - ISNULL(det.Discount, 0)) / 100))))) AS money) AS 'Total Vat'
+        , SUM(det.Quantity) AS 'Quantity'
+        , CAST(AVG(det.TotalLine) AS money) AS 'Avg Total Invoice'
+        , CAST(STDEV(det.TotalLine) AS money) AS 'Stdev Total Invoice'
+    FROM Sales.Products AS pro
+    INNER JOIN Sales.InvoicesDetail AS det 
+        INNER JOIN Sales.InvoicesHeader AS inv ON det.InvoiceId = inv.InvoiceId
+        LEFT JOIN Sales.VatTypes AS vat ON det.VatTypeId = vat.VatTypeId
+    ON det.ProductId = pro.ProductId
+    GROUP BY pro.Name, YEAR(inv.InvoiceDate)
+END
+GO
+-- TODO

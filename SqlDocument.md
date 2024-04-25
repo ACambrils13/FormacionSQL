@@ -149,3 +149,9 @@ El uso de claves compuestas por varias columnas es útil en las ocasiones en las
 El uso de campos calculados es más simple para casos de operaciones simples dentro de una misma tabla, que no impliquen una lógica compleja. Usándolos, el rendimiento no se ve muy afectado y permite una forma fácil de actualizar datos automáticamente.
 
 Por su parte, los triggers permiten mucha más flexibilidad a la hora de crear operaciones complejas que incluso puedan utilizar campos de diversas tablas o actualizar unas tablas cuando se producen cambios en otras. Al ser operaciones que deben crearse fueras de las tablas, implican más mantenimiento y, en función de su complejidad, pueden perjudicar al rendimiento de las consultas.
+
+
+### Distintos collation en una misma tabla
+
+Es posible indicar collation diferentes para cambios de texto en una misma tabla con la simple indicación del "collate" en la definición de la columna en cuestión. Las limitaciones principales que tiene esta práctica se basan en la complejidad que suma a cualquier uso posterior de esas columnas en consultas, joins o comparaciones textuales. Además de complejizar la interoperabilidad de la base de datos con otros sistemas o programas que la usen, siendo quizás necesarias transformaciones extra.
+
