@@ -418,23 +418,122 @@ GO
 
 
 -- Querys to extact data on Sales
+
+-- Data for 12 Months
 USE smcdb1;
 GO
 
 BEGIN
-    SELECT pro.Name AS 'Type'
-        , YEAR(inv.InvoiceDate) AS 'Year'
-        , CAST(SUM(det.TotalLine) AS money) AS 'Total Invoices'
-        , CAST(SUM(det.TotalLine - (det.Quantity * ((det.UnitPrice * ((100 - ISNULL(det.Discount, 0)) / 100))))) AS money) AS 'Total Vat'
-        , SUM(det.Quantity) AS 'Quantity'
-        , CAST(AVG(det.TotalLine) AS money) AS 'Avg Total Invoice'
-        , CAST(STDEV(det.TotalLine) AS money) AS 'Stdev Total Invoice'
+    WITH cte_Monthly AS (
+            SELECT [Type]
+            , [Year]
+            , ISNULL([1], 0) AS [January]
+            , ISNULL([2], 0) AS [February]
+            , ISNULL([3], 0) AS [March]
+            , ISNULL([4], 0) AS [April]
+            , ISNULL([5], 0) AS [May]
+            , ISNULL([6], 0) AS [June]
+            , ISNULL([7], 0) AS [July]
+            , ISNULL([8], 0) AS [August]
+            , ISNULL([9], 0) AS [September]
+            , ISNULL([10], 0) AS [October]
+            , ISNULL([11], 0) AS [November]
+            , ISNULL([12], 0) AS [December]
+        FROM 
+            (
+                SELECT pro.Name AS [Type]
+                    , YEAR(inv.InvoiceDate) AS [Year]
+                    , CAST(det.TotalLine AS money) AS [Total Invoices]
+                    , MONTH(inv.InvoiceDate) AS [Month]
+                FROM Sales.Products AS pro
+                INNER JOIN Sales.InvoicesDetail AS det 
+                    INNER JOIN Sales.InvoicesHeader AS inv ON det.InvoiceId = inv.InvoiceId
+                ON det.ProductId = pro.ProductId
+            ) AS tbl
+        PIVOT (
+            SUM([Total Invoices])
+            FOR [Month] IN ([1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12])
+        ) AS pvt
+    )
+
+    SELECT pro.Name AS [Type]
+        , YEAR(inv.InvoiceDate) AS [Year]
+        , CAST(SUM(det.TotalLine) AS money) AS [Total Invoices]
+        , CAST(SUM(det.TotalLine - (det.Quantity * ((det.UnitPrice * ((100 - ISNULL(det.Discount, 0)) / 100))))) AS money) AS [Total Vat]
+        , SUM(det.Quantity) AS [Quantity]
+        , CAST(AVG(det.TotalLine) AS money) AS [Avg Total Invoice]
+        , CAST(STDEV(det.TotalLine) AS money) AS [Stdev Total Invoice]
+        , cte.[January]
+        , cte.[February]
+        , cte.[March]
+        , cte.[April]
+        , cte.[May]
+        , cte.[June]
+        , cte.[July]
+        , cte.[August]
+        , cte.[September]
+        , cte.[October]
+        , cte.[November]
+        , cte.[December]
     FROM Sales.Products AS pro
     INNER JOIN Sales.InvoicesDetail AS det 
         INNER JOIN Sales.InvoicesHeader AS inv ON det.InvoiceId = inv.InvoiceId
         LEFT JOIN Sales.VatTypes AS vat ON det.VatTypeId = vat.VatTypeId
     ON det.ProductId = pro.ProductId
-    GROUP BY pro.Name, YEAR(inv.InvoiceDate)
+    INNER JOIN cte_Monthly AS cte ON pro.Name = cte.[Type]
+    GROUP BY pro.Name, YEAR(inv.InvoiceDate), [January], [February], [March], [April], [May], [June], [July], [August], [September], [October], [November], [December]
 END
 GO
--- TODO
+
+
+-- Top 5 Customers
+USE smcdb1;
+GO
+
+BEGIN
+    SELECT TOP 5
+        cus.Name
+        , cus.Surname
+        , cus.DocumentNumber
+        , SUM(inh.Total) AS [Total Invoices]
+    FROM Sales.Customers AS cus
+    INNER JOIN Sales.InvoicesHeader AS inh ON inh.CustomerId = cus.CustomerId
+    GROUP BY cus.Name, cus.Surname, cus.DocumentNumber
+    ORDER BY [Total Invoices] DESC
+    END
+GO
+
+-- Countries by Total
+USE smcdb1;
+GO
+
+BEGIN
+    SELECT cou.CountryName
+        , SUM(inh.Total) AS [Total Invoices]
+    FROM Sales.Countries AS cou
+    INNER JOIN Sales.Address AS adr 
+        INNER JOIN Sales.InvoicesHeader AS inh ON inh.AddressId = adr.AddressId
+    ON adr.CountryId = cou.CountryId
+    GROUP BY cou.CountryName
+    ORDER BY [Total Invoices] DESC
+END
+GO
+
+
+-- Total for last 3 months
+USE smcdb1;
+GO
+
+BEGIN
+    DECLARE @Today DATE = GETDATE();
+    DECLARE @StartDate DATE = DATEADD(MONTH, -2, @Today);
+    
+    SELECT YEAR(inh.InvoiceDate) AS [Year]
+        , MONTH(inh.InvoiceDate) AS [Month]
+        , SUM(inh.Total) AS [Total]
+    FROM Sales.InvoicesHeader AS inh
+    WHERE INH.InvoiceDate BETWEEN @StartDate AND @Today
+    GROUP BY YEAR(inh.InvoiceDate), MONTH(inh.InvoiceDate)
+    ORDER BY [Month] DESC
+END
+GO
