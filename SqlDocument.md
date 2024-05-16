@@ -144,9 +144,16 @@ El diagrama de las bases de datos de smcdb1 es el siguiente:
 El uso de claves compuestas por varias columnas es útil en las ocasiones en las que sea complicado encontrar un campo único en esa tabla, bien sea por la falta de entidad de la propia tabla o porque se trate de, por ejemplo, una tabla que genere una relación N a N entre otras dos tablas. En estos casos, es útil usar las como clave primaria las dos claves primarias de las tablas asociadas o bien, como en el caso de InvoicesDetail, la clave primaria de su cabecera, InvoicesHeader y el número de línea único para cada factura, pero no a nivel general de la tabla.
 
 
+### Campos calculados ###
+
+El uso de campos calculados en las tablas de base de datos permite almacenar datos compuestos por cálculos básicos sobre otros datos de la misma tabla, impidiendo errores de rellenado de la misma y asegurando la integridad del dato. Además, usando el concepto 'PERSISTED', el valor queda almacenado en base de datos de modo que el rendimiento de las consultas sobre esta columna mejoren, aunque incrementa lógicamente el espacio de almacenamiento.
+
+Se trata de una solución sencilla para operaciones simples, pero hay que tener en cuenta que no disponen de excesiva flexibilidad y que almacena lógica dentro de la estructura de la tabla.
+
+
 ### Campos calculados vs Triggers
 
-El uso de campos calculados es más simple para casos de operaciones simples dentro de una misma tabla, que no impliquen una lógica compleja. Usándolos, el rendimiento no se ve muy afectado y permite una forma fácil de actualizar datos automáticamente.
+Como se ha visto en el punto anterior, los campos calculados son útiles para casos de operaciones simples dentro de una misma tabla, que no impliquen una lógica compleja. Usándolos, el rendimiento no se ve muy afectado y permite una forma fácil de actualizar datos automáticamente.
 
 Por su parte, los triggers permiten mucha más flexibilidad a la hora de crear operaciones complejas que incluso puedan utilizar campos de diversas tablas o actualizar unas tablas cuando se producen cambios en otras. Al ser operaciones que deben crearse fueras de las tablas, implican más mantenimiento y, en función de su complejidad, pueden perjudicar al rendimiento de las consultas.
 

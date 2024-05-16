@@ -537,3 +537,142 @@ BEGIN
     ORDER BY [Month] DESC
 END
 GO
+
+
+
+-- Delete integral reference between Sales.InvoiceHeader and Sales.InvoicesDetail
+USE smcdb1;
+GO
+
+BEGIN
+    DECLARE @constraintName NVARCHAR(200);
+
+    SELECT 
+        @constraintName = con.name
+    FROM 
+        sys.foreign_keys AS fk
+        INNER JOIN sys.objects AS con ON fk.object_id = con.object_id
+        INNER JOIN sys.tables AS t ON fk.parent_object_id = t.object_id
+    WHERE 
+        t.name = 'InvoicesDetail'
+        AND fk.referenced_object_id = OBJECT_ID('Sales.InvoicesHeader');
+
+    IF @constraintName IS NOT NULL
+    BEGIN
+        EXEC('ALTER TABLE Sales.InvoicesDetail DROP CONSTRAINT ' + @constraintName);
+    END
+END
+GO
+
+
+-- Add integral reference between Sales.InvoiceHeader and Sales.InvoiceDetail by triggers
+USE smcdb1;
+GO
+
+
+CREATE OR ALTER TRIGGER InsertInvoiceDetail
+ON Sales.InvoicesDetail
+INSTEAD OF INSERT
+AS
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM inserted AS ins
+        LEFT JOIN Sales.InvoicesHeader AS inh ON ins.InvoiceId = inh.InvoiceId
+        WHERE inh.InvoiceId IS NULL
+    )
+        BEGIN
+            RAISERROR ('Insert operation failed. InvoiceId does not exist in Sales.InvoicesHeader.', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+    ELSE
+        BEGIN
+            INSERT INTO Sales.InvoicesDetail (InvoiceId, RowNumber, ProductId, [Description], Quantity, UnitPrice, Discount, VatTypeId, TotalLine)
+            SELECT InvoiceId, RowNumber, ProductId, [Description], Quantity, UnitPrice, Discount, VatTypeId, TotalLine
+            FROM inserted;
+        END
+END
+GO
+
+
+CREATE OR ALTER TRIGGER UpdateInvoiceDetail
+ON Sales.InvoicesDetail
+INSTEAD OF UPDATE
+AS
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM inserted AS ins
+        LEFT JOIN Sales.InvoicesHeader AS inh ON ins.InvoiceId = inh.InvoiceId
+        WHERE inh.InvoiceId IS NULL
+    )
+        BEGIN
+            RAISERROR ('Update operation failed. InvoiceId does not exist in Sales.InvoicesHeader.', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+    ELSE
+        BEGIN
+            UPDATE Sales.InvoicesDetail
+            SET InvoiceId = ins.InvoiceId
+                , RowNumber = ins.RowNumber
+                , ProductId = ins.ProductId
+                , [Description] = ins.[Description]
+                , Quantity = ins.Quantity
+                , UnitPrice = ins.UnitPrice
+                , Discount = ins.Discount
+                , VatTypeId = ins.VatTypeId
+                , TotalLine = ins.TotalLine
+            FROM inserted AS ins
+            WHERE Sales.InvoicesDetail.InvoiceId = ins.InvoiceId
+            AND Sales.InvoicesDetail.RowNumber = ins.RowNumber
+        END
+END
+GO
+
+
+
+CREATE OR ALTER TRIGGER DeleteInvoiceHeader
+ON Sales.InvoicesHeader
+INSTEAD OF DELETE
+AS
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM deleted AS del
+        INNER JOIN Sales.InvoicesDetail AS ind ON del.InvoiceId = ind.InvoiceId
+    )
+        BEGIN
+            RAISERROR ('Delete operation failed. Cannot delete invoice with existing detail lines.', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+    ELSE
+        BEGIN
+            DELETE FROM Sales.InvoicesHeader
+            WHERE InvoiceId IN (
+                SELECT InvoiceId
+                FROM deleted
+            )
+        END
+END
+GO
+
+
+
+-- Modify Sales.InvoicesHeader to add calculate Total column
+USE smcdb1;
+GO
+
+BEGIN
+    ALTER TABLE Sales.InvoicesHeader
+    DROP COLUMN Total;
+END
+GO
+
+BEGIN
+    ALTER TABLE Sales.InvoicesHeader
+    ADD Total AS (TaxBase + TotalVat) PERSISTED;
+END
+GO
