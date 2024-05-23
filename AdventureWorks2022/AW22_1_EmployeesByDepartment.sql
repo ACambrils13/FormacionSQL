@@ -21,6 +21,7 @@ SELECT
     dep.DepartmentID
     , dep.Name AS [Department Name]
     , emp.BusinessEntityID
+    , CONCAT(prs.FirstName, ' ', prs.LastName) AS [Name]
     , emp.NationalIDNumber
     , emp.LoginID
     , emp.JobTitle
@@ -32,5 +33,6 @@ INNER JOIN cte_CurrentEmployees AS cem
         INNER JOIN HumanResources.Department AS dep ON ned.DepartmentID = dep.DepartmentID
     ON cem.DepartmentID = ned.DepartmentID
 ON emp.BusinessEntityID = cem.BusinessEntityID
+INNER JOIN Person.Person AS prs ON emp.BusinessEntityID = prs.BusinessEntityID
 WHERE ned.NumberEmployees >= 5
 ORDER BY dep.DepartmentID, emp.BusinessEntityID
